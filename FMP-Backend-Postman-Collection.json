@@ -1,0 +1,92 @@
+{
+  "info": {
+    "_postman_id": "7d3c09a7-3f20-41b2-bb9d-9a5a1db9a9f4",
+    "name": "FMP Backend - Plugin APIs",
+    "description": "Collection for testing Plugin CRUD and filtering APIs built with Node.js and MongoDB.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Create Plugin",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"title\": \"SEO Booster\",\n  \"description\": \"Improve your WordPress site ranking\",\n  \"category\": \"WordPress\",\n  \"tags\": [\"SEO\", \"Optimization\"],\n  \"rating\": 4.5\n}"
+        },
+        "url": { "raw": "http://localhost:5000/api/plugins", "protocol": "http", "host": ["localhost"], "port": "5000", "path": ["api", "plugins"] }
+      },
+      "response": []
+    },
+    {
+      "name": "Get All Plugins",
+      "request": {
+        "method": "GET",
+        "url": { "raw": "http://localhost:5000/api/plugins", "protocol": "http", "host": ["localhost"], "port": "5000", "path": ["api", "plugins"] }
+      },
+      "response": []
+    },
+    {
+      "name": "Get Plugins by Category",
+      "request": {
+        "method": "GET",
+        "url": { "raw": "http://localhost:5000/api/plugins?category=WordPress", "protocol": "http", "host": ["localhost"], "port": "5000", "path": ["api", "plugins"], "query": [{ "key": "category", "value": "WordPress" }] }
+      },
+      "response": []
+    },
+    {
+      "name": "Get Plugins by Tag",
+      "request": {
+        "method": "GET",
+        "url": { "raw": "http://localhost:5000/api/plugins?tag=SEO", "protocol": "http", "host": ["localhost"], "port": "5000", "path": ["api", "plugins"], "query": [{ "key": "tag", "value": "SEO" }] }
+      },
+      "response": []
+    },
+    {
+      "name": "Get Plugins by Rating",
+      "request": {
+        "method": "GET",
+        "url": { "raw": "http://localhost:5000/api/plugins?minRating=4", "protocol": "http", "host": ["localhost"], "port": "5000", "path": ["api", "plugins"], "query": [{ "key": "minRating", "value": "4" }] }
+      },
+      "response": []
+    },
+    {
+      "name": "Update Plugin",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"title\": \"SEO Booster Pro\",\n  \"rating\": 5\n}"
+        },
+        "url": {
+          "raw": "http://localhost:5000/api/plugins/<replace_with_plugin_id>",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "5000",
+          "path": ["api", "plugins", "<replace_with_plugin_id>"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Delete Plugin",
+      "request": {
+        "method": "DELETE",
+        "url": {
+          "raw": "http://localhost:5000/api/plugins/<replace_with_plugin_id>",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "5000",
+          "path": ["api", "plugins", "<replace_with_plugin_id>"]
+        }
+      },
+      "response": []
+    }
+  ]
+}
