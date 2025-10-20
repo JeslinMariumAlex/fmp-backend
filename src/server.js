@@ -1,5 +1,6 @@
 import "dotenv/config";
 import express from "express";
+import pluginRoutes from "./routes/plugin.routes.js";
 import { connectDB } from "./config/db.js";
 
 const app = express();
@@ -12,6 +13,9 @@ app.use(express.json());
 app.get("/health", (req, res) => {
   res.json({ ok: true });
 });
+
+// plugin routes
+app.use("/api/plugins", pluginRoutes);
 
 // start function
 const start = async () => {
