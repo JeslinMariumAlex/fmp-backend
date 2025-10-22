@@ -1,92 +1,525 @@
 {
   "info": {
-    "_postman_id": "7d3c09a7-3f20-41b2-bb9d-9a5a1db9a9f4",
-    "name": "FMP Backend - Plugin APIs",
-    "description": "Collection for testing Plugin CRUD and filtering APIs built with Node.js and MongoDB.",
-    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    "_postman_id": "8a1c4e1d-bd7c-4c5c-9a2a-3d7fbf0c9f99",
+    "name": "FMP Backend",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "End-to-end CRUD tests for FMP Backend (health, create, list, filters, getById, update, delete) with variable chaining."
   },
   "item": [
     {
-      "name": "Create Plugin",
+      "name": "01 - Health",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/health",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "health"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+              "const json = pm.response.json();",
+              "pm.test(\"Body has ok: true\", () => pm.expect(json).to.have.property(\"ok\", true));"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "02 - Create Plugin",
       "request": {
         "method": "POST",
         "header": [
-          { "key": "Content-Type", "value": "application/json" }
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"title\": \"SEO Booster\",\n  \"description\": \"Improve your WordPress site ranking\",\n  \"category\": \"WordPress\",\n  \"tags\": [\"SEO\", \"Optimization\"],\n  \"rating\": 4.5\n}"
+            "raw": "{\n  \"title\": \"Amazing YouTube Helper\",\n  \"desc\": \"Extension to boost YouTube\",\n  \"descText\": \"<p>Rich HTML description</p>\",\n  \"tags\": [\"youtube\", \"video\"],\n  \"category\": \"Chrome extensions\",\n  \"subcategory\": \"Youtube\",\n  \"screenshots\": [{ \"url\": \"https://placehold.co/400x220\" }],\n  \"video\": \"https://www.youtube.com/watch?v=dQw4w9WgXcQ\",\n  \"appLink\": \"https://example.com\",\n  \"likes\": 12,\n  \"hearts\": 5,\n  \"oks\": 2,\n  \"rating\": 4.5,\n  \"ratingsCount\": 34\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
         },
-        "url": { "raw": "http://localhost:5000/api/plugins", "protocol": "http", "host": ["localhost"], "port": "5000", "path": ["api", "plugins"] }
+        "url": {
+          "raw": "{{baseUrl}}/api/plugins",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "plugins"
+          ]
+        }
       },
-      "response": []
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status is 201 Created\", () => pm.response.to.have.status(201));",
+              "const json = pm.response.json();",
+              "pm.test(\"Has _id\", () => pm.expect(json).to.have.property(\"_id\"));",
+              "pm.collectionVariables.set(\"pluginId\", json._id);",
+              "pm.test(\"Title present\", () => pm.expect(json).to.have.property(\"title\"));",
+              "pm.test(\"Tags is array\", () => pm.expect(json.tags).to.be.an(\"array\"));"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
     },
     {
-      "name": "Get All Plugins",
+      "name": "03 - Get All Plugins",
       "request": {
         "method": "GET",
-        "url": { "raw": "http://localhost:5000/api/plugins", "protocol": "http", "host": ["localhost"], "port": "5000", "path": ["api", "plugins"] }
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/plugins",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "plugins"
+          ]
+        }
       },
-      "response": []
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+              "const json = pm.response.json();",
+              "pm.test(\"Has data[]\", () => pm.expect(json.data).to.be.an(\"array\"));",
+              "pm.test(\"Has meta pagination\", () => pm.expect(json).to.have.property(\"meta\"));"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
     },
     {
-      "name": "Get Plugins by Category",
+      "name": "03a - Filter: q=youtube",
       "request": {
         "method": "GET",
-        "url": { "raw": "http://localhost:5000/api/plugins?category=WordPress", "protocol": "http", "host": ["localhost"], "port": "5000", "path": ["api", "plugins"], "query": [{ "key": "category", "value": "WordPress" }] }
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/plugins?q=youtube",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "plugins"
+          ],
+          "query": [
+            {
+              "key": "q",
+              "value": "youtube"
+            }
+          ]
+        }
       },
-      "response": []
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+              "pm.test(\"data[] exists\", () => pm.expect(pm.response.json().data).to.be.an(\"array\"));"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
     },
     {
-      "name": "Get Plugins by Tag",
+      "name": "03b - Filter: category + subcategory",
       "request": {
         "method": "GET",
-        "url": { "raw": "http://localhost:5000/api/plugins?tag=SEO", "protocol": "http", "host": ["localhost"], "port": "5000", "path": ["api", "plugins"], "query": [{ "key": "tag", "value": "SEO" }] }
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/plugins?category=Chrome%20extensions&subcategory=Youtube",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "plugins"
+          ],
+          "query": [
+            {
+              "key": "category",
+              "value": "Chrome extensions"
+            },
+            {
+              "key": "subcategory",
+              "value": "Youtube"
+            }
+          ]
+        }
       },
-      "response": []
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+              "pm.test(\"data[] exists\", () => pm.expect(pm.response.json().data).to.be.an(\"array\"));"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
     },
     {
-      "name": "Get Plugins by Rating",
+      "name": "03c - Filter: tags=youtube,video",
       "request": {
         "method": "GET",
-        "url": { "raw": "http://localhost:5000/api/plugins?minRating=4", "protocol": "http", "host": ["localhost"], "port": "5000", "path": ["api", "plugins"], "query": [{ "key": "minRating", "value": "4" }] }
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/plugins?tags=youtube,video",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "plugins"
+          ],
+          "query": [
+            {
+              "key": "tags",
+              "value": "youtube,video"
+            }
+          ]
+        }
       },
-      "response": []
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+              "pm.test(\"data[] exists\", () => pm.expect(pm.response.json().data).to.be.an(\"array\"));"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
     },
     {
-      "name": "Update Plugin",
+      "name": "03d - Filter: minRating + sortBy=rating desc",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/plugins?minRating=4&sortBy=rating&order=desc",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "plugins"
+          ],
+          "query": [
+            {
+              "key": "minRating",
+              "value": "4"
+            },
+            {
+              "key": "sortBy",
+              "value": "rating"
+            },
+            {
+              "key": "order",
+              "value": "desc"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+              "pm.test(\"data[] exists\", () => pm.expect(pm.response.json().data).to.be.an(\"array\"));"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "04 - Get By ID",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/plugins/{{pluginId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "plugins",
+            "{{pluginId}}"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "exec": [
+              "if (!pm.collectionVariables.get('pluginId')) {",
+              "  throw new Error('pluginId is not set. Run \"02 - Create Plugin\" first.');",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+              "const json = pm.response.json();",
+              "pm.test(\"Correct _id\", () => pm.expect(json._id).to.eql(pm.collectionVariables.get(\"pluginId\")));"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "05 - Update Plugin (PATCH)",
       "request": {
         "method": "PATCH",
         "header": [
-          { "key": "Content-Type", "value": "application/json" }
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"title\": \"SEO Booster Pro\",\n  \"rating\": 5\n}"
+          "raw": "{ \"likes\": 20, \"rating\": 4.7 }",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
         },
         "url": {
-          "raw": "http://localhost:5000/api/plugins/<replace_with_plugin_id>",
-          "protocol": "http",
-          "host": ["localhost"],
-          "port": "5000",
-          "path": ["api", "plugins", "<replace_with_plugin_id>"]
+          "raw": "{{baseUrl}}/api/plugins/{{pluginId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "plugins",
+            "{{pluginId}}"
+          ]
         }
       },
-      "response": []
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "exec": [
+              "if (!pm.collectionVariables.get('pluginId')) {",
+              "  throw new Error('pluginId is not set. Run \"02 - Create Plugin\" first.');",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+              "const json = pm.response.json();",
+              "pm.test(\"likes updated to 20\", () => pm.expect(json.likes).to.eql(20));",
+              "pm.test(\"rating updated to 4.7\", () => pm.expect(json.rating).to.eql(4.7));"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
     },
     {
-      "name": "Delete Plugin",
+      "name": "06 - Delete Plugin",
       "request": {
         "method": "DELETE",
+        "header": [],
         "url": {
-          "raw": "http://localhost:5000/api/plugins/<replace_with_plugin_id>",
-          "protocol": "http",
-          "host": ["localhost"],
-          "port": "5000",
-          "path": ["api", "plugins", "<replace_with_plugin_id>"]
+          "raw": "{{baseUrl}}/api/plugins/{{pluginId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "plugins",
+            "{{pluginId}}"
+          ]
         }
       },
-      "response": []
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "exec": [
+              "if (!pm.collectionVariables.get('pluginId')) {",
+              "  throw new Error('pluginId is not set. Run \"02 - Create Plugin\" first.');",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+              "const json = pm.response.json();",
+              "pm.test(\"success:true\", () => pm.expect(json.success).to.eql(true));",
+              "pm.test(\"data has _id\", () => pm.expect(json.data).to.have.property(\"_id\"));",
+              "pm.test(\"Deleted _id matches\", () => pm.expect(json.data._id).to.eql(pm.collectionVariables.get(\"pluginId\")));",
+              "pm.collectionVariables.unset(\"pluginId\");"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "07 - Negative: 400 Validation Error (missing title)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"desc\": \"Missing title should fail\",\n  \"tags\": [\"youtube\"]\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/plugins",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "plugins"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status is 400\", () => pm.response.to.have.status(400));"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "08 - Negative: 404 Not Found (valid ObjectId, not in DB)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/plugins/671234567812345678123456",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "plugins",
+            "671234567812345678123456"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status is 404\", () => pm.response.to.have.status(404));"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "09 - Negative: Invalid ObjectId",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/plugins/not-an-id",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "plugins",
+            "not-an-id"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Client/Server error\", () => pm.expect([400, 500]).to.include(pm.response.code));"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:5000",
+      "type": "string"
+    },
+    {
+      "key": "pluginId",
+      "value": "",
+      "type": "string"
     }
   ]
 }

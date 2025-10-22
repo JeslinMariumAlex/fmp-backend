@@ -1,21 +1,30 @@
-export const validate =
-  (schema) =>
-  (req, res, next) => {
-    try {
-      const parsed = schema.parse({
-        body: req.body,
-        query: req.query,
-        params: req.params
-      });
-      req.body = parsed.body ?? req.body;
-      req.query = parsed.query ?? req.query;
-      req.params = parsed.params ?? req.params;
-      return next();
-    } catch (err) {
+// src/middlewares/validate.middleware.js
+
+export const validate = (schema) => (req, res, next) => {
+  try {
+    // For GET requests → validate query params
+    // For others (POST, PATCH, etc.) → validate body
+    const data =
+      req.method === "GET"
+        ? { query: req.query }
+        : { body: req.body };
+
+    const parsed = schema.safeParse(data);
+
+    if (!parsed.success) {
       return res.status(400).json({
         success: false,
         message: "Validation error",
-        errors: err?.issues || err
+        errors: parsed.error.issues.map((issue) => ({
+          path: issue.path.join("."),
+          message: issue.message,
+        })),
       });
     }
-  };
+
+    // If validation passes, move to controller
+    next();
+  } catch (err) {
+    next(err);
+  }
+};

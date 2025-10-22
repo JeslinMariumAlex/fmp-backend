@@ -1,27 +1,31 @@
-import express from "express";
+import { Router } from "express";
 import {
   createPlugin,
-  getPlugins,
+  listPlugins,
   getPluginById,
   updatePlugin,
-  deletePlugin,
+  deletePlugin
 } from "../controllers/plugin.controller.js";
+import { validate } from "../middlewares/validate.middleware.js";
+import { createPluginSchema, updatePluginSchema, listQuerySchema } from "../schemas/plugin.schema.js";
 
-const router = express.Router();
+const router = Router();
 
-// CREATE a new plugin
-router.post("/", createPlugin);
+// Create
+router.post("/", validate(createPluginSchema), createPlugin);
 
-// GET all plugins (with optional filters)
-router.get("/", getPlugins);
 
-// GET a single plugin by ID
+
+// List / filter / paginate
+router.get("/", validate(listQuerySchema), listPlugins);
+
+// Get one
 router.get("/:id", getPluginById);
 
-// UPDATE a plugin by ID
-router.patch("/:id", updatePlugin);
+// Update (partial)
+router.patch("/:id", validate(updatePluginSchema), updatePlugin);
 
-// DELETE a plugin by ID
+// Delete
 router.delete("/:id", deletePlugin);
 
 export default router;
