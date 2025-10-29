@@ -4,7 +4,8 @@ import {
   listPlugins,
   getPluginById,
   updatePlugin,
-  deletePlugin
+  deletePlugin,
+  restorePlugin,
 } from "../controllers/plugin.controller.js";
 import { validate } from "../middlewares/validate.middleware.js";
 import { createPluginSchema, updatePluginSchema, listQuerySchema } from "../schemas/plugin.schema.js";
@@ -27,5 +28,9 @@ router.patch("/:id", validate(updatePluginSchema), updatePlugin);
 
 // Delete
 router.delete("/:id", deletePlugin);
+
+//restore
+router.post("/:id/restore", restorePlugin);
+
 
 export default router;

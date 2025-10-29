@@ -12,8 +12,8 @@ import {
 // helper: send readable Zod errors (shows nested paths clearly)
 const zodError = (res, result) => {
   const details = result.error.issues.map((issue) => ({
-    path: issue.path.join("."),   // e.g. body.title, body.screenshots.0.url
-    message: issue.message,       // human-readable error
+    path: issue.path.join("."), // e.g. body.title, body.screenshots.0.url
+    message: issue.message, // human-readable error
   }));
 
   return res.status(400).json({
@@ -26,7 +26,6 @@ const zodError = (res, result) => {
 // Create
 export const createPlugin = async (req, res, next) => {
   try {
-
     const parsed = createPluginSchema.safeParse({ body: req.body });
 
     if (!parsed.success) {
@@ -46,10 +45,15 @@ export const createPlugin = async (req, res, next) => {
 export const getPluginById = async (req, res, next) => {
   try {
     if (!mongoose.isValidObjectId(req.params.id)) {
-      return res.status(400).json({ success: false, message: "Invalid plugin id" });
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid plugin id" });
     }
     const plugin = await Plugin.findById(req.params.id);
-    if (!plugin) return res.status(404).json({ success: false, message: "Plugin not found" });
+    if (!plugin)
+      return res
+        .status(404)
+        .json({ success: false, message: "Plugin not found" });
     return ApiResponse.ok(res, plugin);
   } catch (err) {
     next(err);
@@ -63,8 +67,15 @@ export const listPlugins = async (req, res, next) => {
     if (!parsed.success) return zodError(res, parsed);
 
     const {
-      q, category, subcategory, tags, minRating,
-      sortBy = "newest", order = "desc", page = "1", limit = "12",
+      q,
+      category,
+      subcategory,
+      tags,
+      minRating,
+      sortBy = "newest",
+      order = "desc",
+      page = "1",
+      limit = "12",
     } = parsed.data.query;
 
     const pageNum = Math.max(parseInt(page) || 1, 1);
@@ -84,7 +95,10 @@ export const listPlugins = async (req, res, next) => {
     if (subcategory) filter.subcategory = subcategory;
 
     if (tags) {
-      const tagArr = tags.split(",").map(t => t.trim()).filter(Boolean);
+      const tagArr = tags
+        .split(",")
+        .map((t) => t.trim())
+        .filter(Boolean);
       if (tagArr.length) filter.tags = { $all: tagArr };
     }
 
@@ -99,9 +113,10 @@ export const listPlugins = async (req, res, next) => {
     else if (sortBy === "popular") sort = { likes: dir, hearts: dir, oks: dir };
     else if (sortBy === "rating") sort = { rating: dir, ratingsCount: dir };
 
+    const finalFilter = { ...filter, isDeleted: false };
     const [items, total] = await Promise.all([
-      Plugin.find(filter).sort(sort).skip(skip).limit(limitNum),
-      Plugin.countDocuments(filter),
+      Plugin.find(finalFilter).sort(sort).skip(skip).limit(limitNum),
+      Plugin.countDocuments(finalFilter),
     ]);
 
     return ApiResponse.ok(res, items, {
@@ -119,7 +134,9 @@ export const listPlugins = async (req, res, next) => {
 export const updatePlugin = async (req, res, next) => {
   try {
     if (!mongoose.isValidObjectId(req.params.id)) {
-      return res.status(400).json({ success: false, message: "Invalid plugin id" });
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid plugin id" });
     }
 
     const parsed = updatePluginSchema.safeParse({ body: req.body });
@@ -127,26 +144,73 @@ export const updatePlugin = async (req, res, next) => {
 
     const payload = parsed.data.body;
 
-    const updated = await Plugin.findByIdAndUpdate(req.params.id, payload, {
-      new: true,
-      runValidators: true,
-    });
-    if (!updated) return res.status(404).json({ success: false, message: "Plugin not found" });
+    const updated = await Plugin.findOneAndUpdate(
+      { _id: req.params.id, isDeleted: false }, // ensure not deleted
+      payload,
+      { new: true, runValidators: true }
+    );
+    if (!updated)
+      return res
+        .status(404)
+        .json({ success: false, message: "Plugin not found" });
     return ApiResponse.ok(res, updated);
   } catch (err) {
     next(err);
   }
 };
 
-// Delete
+// Soft Delete
 export const deletePlugin = async (req, res, next) => {
   try {
     if (!mongoose.isValidObjectId(req.params.id)) {
-      return res.status(400).json({ success: false, message: "Invalid plugin id" });
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid plugin id" });
     }
-    const deleted = await Plugin.findByIdAndDelete(req.params.id);
-    if (!deleted) return res.status(404).json({ success: false, message: "Plugin not found" });
-    return ApiResponse.ok(res, { _id: deleted._id });
+
+    const deleted = await Plugin.findOneAndUpdate(
+      { _id: req.params.id, isDeleted: false },
+      { $set: { isDeleted: true, deletedAt: new Date() } },
+      { new: true }
+    );
+
+    if (!deleted) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Plugin not found" });
+    }
+
+    return ApiResponse.ok(res, {
+      _id: deleted._id,
+      message: "Plugin soft-deleted",
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// Restore soft-deleted plugin
+export const restorePlugin = async (req, res, next) => {
+  try {
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid plugin id" });
+    }
+
+    const restored = await Plugin.findOneAndUpdate(
+      { _id: req.params.id, isDeleted: true },
+      { $set: { isDeleted: false, deletedAt: null } },
+      { new: true }
+    );
+
+    if (!restored) {
+      return res
+        .status(404)
+        .json({ success: false, message: "No deleted plugin found" });
+    }
+
+    return ApiResponse.ok(res, restored);
   } catch (err) {
     next(err);
   }
