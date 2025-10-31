@@ -13,18 +13,40 @@ const app = express();
 
 /* ---------- Security & utils ---------- */
 app.use(helmet());
-app.use(cors({ origin: ["http://localhost:5500","http://127.0.0.1:5500"] }));
+
+// CORS — allow local dev + add Netlify later
+const ALLOWED_ORIGINS = [
+  "http://localhost:3000",
+  "http://127.0.0.1:3000",
+  "http://localhost:5500",
+  "http://127.0.0.1:5500",
+  // "https://your-site.netlify.app", // add after frontend deploy
+];
+
+app.use(
+  cors({
+    origin: (origin, cb) => {
+      if (!origin) return cb(null, true);                 // allow server-to-server/Postman
+      if (ALLOWED_ORIGINS.includes(origin)) return cb(null, true);
+      return cb(new Error("Not allowed by CORS: " + origin));
+    },
+    methods: ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+  })
+);
+
+// ✅ Express 5-safe preflight handler (regex, not "*")
+app.options(/.*/, cors());
+
 app.use(compression());
 app.use(morgan(process.env.NODE_ENV === "production" ? "combined" : "dev"));
-app.use(express.json({ limit: "1mb" }));
+app.use(express.json({ limit: "10mb" }));   // higher for screenshots
 app.use(express.urlencoded({ extended: true }));
 
-/* ---------- Sanitization (Express 5–safe) ---------- */
-/** Remove keys starting with "$" or containing "." to avoid Mongo operator injection. */
+/* ---------- Sanitization ---------- */
 function sanitizeObject(obj) {
   if (!obj || typeof obj !== "object") return;
   for (const key of Object.keys(obj)) {
-    // dangerous key? remove it
     if (key.startsWith("$") || key.includes(".")) {
       delete obj[key];
       continue;
@@ -33,10 +55,7 @@ function sanitizeObject(obj) {
     if (val && typeof val === "object") sanitizeObject(val);
   }
 }
-
-app.use(hpp()); // prevent HTTP param pollution
-
-// sanitize in place; DO NOT reassign req.query / req.params on Express 5
+app.use(hpp());
 app.use((req, _res, next) => {
   if (req.body) sanitizeObject(req.body);
   if (req.query) sanitizeObject(req.query);
@@ -45,16 +64,13 @@ app.use((req, _res, next) => {
 });
 
 /* ---------- Rate limiter ---------- */
-const limiter = rateLimit({
-  windowMs: 60 * 1000,
-  max: 120, // 120 requests/min/IP
-});
+const limiter = rateLimit({ windowMs: 60 * 1000, max: 120 });
 app.use(limiter);
 
 /* ---------- Routes ---------- */
 app.use("/api/plugins", pluginRoutes);
 
-// health
+// Health
 app.get("/health", (_req, res) => res.json({ ok: true }));
 
 /* ---------- Errors ---------- */
