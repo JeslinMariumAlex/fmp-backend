@@ -13,39 +13,44 @@ import { authRequired, requireAdmin } from "./middlewares/auth.middleware.js";
 
 
 const app = express();
+app.set("trust proxy", 1); // <-- IMPORTANT for secure cookies on Render
 
 /* ---------- Security & utils ---------- */
 app.use(helmet());
 
-// CORS — allow local dev + add Netlify later
-const ALLOWED_ORIGINS = [
+// CORS
+const isProd = process.env.NODE_ENV === "production";
+
+// Allow only Netlify in production; allow localhost ports in dev
+const PROD_ORIGINS = ["https://findmyplugin.netlify.app"];
+const DEV_ORIGINS = [
+  "http://localhost:5500",
+  "http://127.0.0.1:5500",
   "http://localhost:3000",
-    "http://127.0.0.1:3000",
-    "http://localhost:5500",
-    "http://127.0.0.1:5500",
-    "https://findmyplugin.netlify.app"
+  "http://127.0.0.1:3000",
 ];
+
+const ALLOWED_ORIGINS = isProd ? PROD_ORIGINS : [...PROD_ORIGINS, ...DEV_ORIGINS];
 
 app.use(
   cors({
-    origin: (origin, cb) => {
-      if (!origin) return cb(null, true);
+    origin(origin, cb) {
+      if (!origin) return cb(null, true);                // allow Postman/server-to-server
       if (ALLOWED_ORIGINS.includes(origin)) return cb(null, true);
       return cb(new Error("Not allowed by CORS: " + origin));
     },
     methods: ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
-    credentials: true, // <-- add this
+    credentials: true, // <-- REQUIRED for cookies
   })
 );
 
-
-// ✅ Express 5-safe preflight handler (regex, not "*")
+// Preflight
 app.options(/.*/, cors());
 
 app.use(compression());
 app.use(morgan(process.env.NODE_ENV === "production" ? "combined" : "dev"));
-app.use(express.json({ limit: "10mb" }));   // higher for screenshots
+app.use(express.json({ limit: "25mb" }));   // higher for screenshots
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 

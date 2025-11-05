@@ -8,29 +8,56 @@ import {
   restorePlugin,
 } from "../controllers/plugin.controller.js";
 import { validate } from "../middlewares/validate.middleware.js";
-import { createPluginSchema, updatePluginSchema, listQuerySchema } from "../schemas/plugin.schema.js";
+import {
+  createPluginSchema,
+  updatePluginSchema,
+  listQuerySchema,
+} from "../schemas/plugin.schema.js";
+
+// ✅ add these imports
+import { authRequired, requireAdmin } from "../middlewares/auth.middleware.js";
 
 const router = Router();
 
-// Create
-router.post("/", validate(createPluginSchema), createPlugin);
+/**
+ * Public (read-only)
+ */
+router.get("/", validate(listQuerySchema), listPlugins);  // list / filter / paginate
+router.get("/:id", getPluginById);                        // get one
 
+/**
+ * Admin-only (write)
+ * Order matters: auth → role → validate → controller
+ * (Fail fast on auth before running schema validation.)
+ */
+router.post(
+  "/",
+  authRequired,
+  requireAdmin,
+  validate(createPluginSchema),
+  createPlugin
+);
 
+router.patch(
+  "/:id",
+  authRequired,
+  requireAdmin,
+  validate(updatePluginSchema),
+  updatePlugin
+);
 
-// List / filter / paginate
-router.get("/", validate(listQuerySchema), listPlugins);
+router.delete(
+  "/:id",
+  authRequired,
+  requireAdmin,
+  deletePlugin
+);
 
-// Get one
-router.get("/:id", getPluginById);
-
-// Update (partial)
-router.patch("/:id", validate(updatePluginSchema), updatePlugin);
-
-// Delete
-router.delete("/:id", deletePlugin);
-
-//restore
-router.post("/:id/restore", restorePlugin);
-
+router.post(
+  "/:id/restore",
+  authRequired,
+  requireAdmin,
+  restorePlugin
+);
 
 export default router;

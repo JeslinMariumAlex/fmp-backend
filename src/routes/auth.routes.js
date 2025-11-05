@@ -18,13 +18,13 @@ router.post("/login", (req, res) => {
     expiresIn: "7d",
   });
 
-  // Local dev cookie (HTTP). We'll switch to secure:true & SameSite:'None' on Render.
-  res.cookie("token", token, {
-    httpOnly: true,
-    secure: false,
-    sameSite: "Lax",
-    maxAge: 7 * 24 * 60 * 60 * 1000,
-  });
+ res.cookie('token', token, {
+  httpOnly: true,
+  secure: process.env.NODE_ENV === 'production',
+  sameSite: process.env.NODE_ENV === 'production' ? 'None' : 'Lax',
+  maxAge: 7 * 24 * 60 * 60 * 1000
+});
+
 
   res.json({ ok: true, role: "admin" });
 });
@@ -42,7 +42,12 @@ router.get("/me", (req, res) => {
 
 // POST /auth/logout
 router.post("/logout", (req, res) => {
-  res.clearCookie("token", { httpOnly: true, secure: false, sameSite: "Lax" });
+  res.clearCookie("token", {
+  httpOnly: true,
+  secure: process.env.NODE_ENV === "production",
+  sameSite: process.env.NODE_ENV === "production" ? "None" : "Lax",
+});
+
   res.json({ ok: true });
 });
 
