@@ -10,6 +10,10 @@ import cookieParser from "cookie-parser";
 import authRoutes from "./routes/auth.routes.js";
 import { notFound, errorHandler } from "./middlewares/error.middleware.js";
 import { authRequired, requireAdmin } from "./middlewares/auth.middleware.js";
+import requestsRouter from "./routes/requests.routes.js";
+import path from "path";
+import { fileURLToPath } from "url";
+
 
 
 const app = express();
@@ -52,6 +56,14 @@ app.use(compression());
 app.use(morgan(process.env.NODE_ENV === "production" ? "combined" : "dev"));
 app.use(express.json({ limit: "25mb" }));   // higher for screenshots
 app.use(express.urlencoded({ extended: true }));
+
+// __dirname for ES modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// serve uploaded files
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+
 app.use(cookieParser());
 
 /* ---------- Sanitization ---------- */
@@ -90,6 +102,9 @@ app.get("/api/admin/summary", authRequired, requireAdmin, (_req, res) => {
 });
 
 app.use("/api/plugins", pluginRoutes);
+// Requests (user-submitted plugin requests)
+app.use("/api/requests", requestsRouter);
+
 
 // Health
 app.get("/health", (_req, res) => res.json({ ok: true }));
