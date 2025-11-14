@@ -1,3 +1,4 @@
+// src/models/plugin.model.js
 import mongoose from "mongoose";
 
 const screenshotSchema = new mongoose.Schema(

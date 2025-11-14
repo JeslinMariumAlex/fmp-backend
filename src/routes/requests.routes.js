@@ -1,3 +1,4 @@
+// src/routes/requests.routes.js
 import express from "express";
 import multer from "multer";
 import path from "path";
@@ -7,34 +8,33 @@ import Request from "../models/Request.js";
 
 const router = express.Router();
 
-// get __dirname in ES modules
+// __dirname fix
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// make sure uploads folder exists
+// create uploads folder if not exist
 const uploadDir = path.join(__dirname, "../uploads");
 if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
 
-// multer setup for file uploads
+// multer storage
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, uploadDir),
   filename: (req, file, cb) => {
-    const uniqueName = Date.now() + "-" + file.originalname.replace(/\s+/g, "_");
-    cb(null, uniqueName);
-  },
+    const name = Date.now() + "-" + file.originalname.replace(/\s+/g, "_");
+    cb(null, name);
+  }
 });
 const upload = multer({ storage });
 
-// --- ROUTES ---
 
-// POST: Save a new request
+// ---------------------------
+//  CREATE REQUEST (Public)
+// ---------------------------
 router.post("/", upload.single("file"), async (req, res) => {
   try {
     const { text, name, email, phone } = req.body;
 
-    if (!text) return res.status(400).json({ message: "Requirement text is required" });
-
-    const newReq = new Request({
+    const newReq = await Request.create({
       text,
       name,
       email,
@@ -43,12 +43,55 @@ router.post("/", upload.single("file"), async (req, res) => {
       filename: req.file ? req.file.originalname : "",
     });
 
-    await newReq.save();
-    res.status(201).json({ message: "Request saved successfully" });
+    res.status(201).json({ success: true, data: newReq });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: "Something went wrong" });
+    res.status(500).json({ message: "Error saving request" });
   }
 });
+
+
+// ---------------------------
+//  GET ALL REQUESTS (Admin)
+// ---------------------------
+router.get("/", async (req, res) => {
+  try {
+    const list = await Request.find().sort({ createdAt: -1 });
+    res.json({ success: true, data: list });
+  } catch (err) {
+    res.status(500).json({ message: "Failed to fetch requests" });
+  }
+});
+
+
+// ---------------------------
+//  GET SINGLE REQUEST (Admin)
+// ---------------------------
+router.get("/:id", async (req, res) => {
+  try {
+    const request = await Request.findById(req.params.id);
+    if (!request) return res.status(404).json({ message: "Request not found" });
+
+    res.json({ success: true, data: request });
+  } catch (err) {
+    res.status(500).json({ message: "Failed to fetch request" });
+  }
+});
+
+
+// ---------------------------
+//  DELETE REQUEST (Admin)
+// ---------------------------
+router.delete("/:id", async (req, res) => {
+  try {
+    const deleted = await Request.findByIdAndDelete(req.params.id);
+    if (!deleted) return res.status(404).json({ message: "Request not found" });
+
+    res.json({ success: true, message: "Request deleted" });
+  } catch (err) {
+    res.status(500).json({ message: "Delete failed" });
+  }
+});
+
 
 export default router;

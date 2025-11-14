@@ -1,3 +1,4 @@
+// src/schemas/plugin.schema.js
 import { z } from "zod";
 
 const url = z.string().url({ message: "Must be a valid URL" });
