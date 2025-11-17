@@ -14,6 +14,7 @@ import { authRequired, requireAdmin } from "./middlewares/auth.middleware.js";
 import requestsRouter from "./routes/requests.routes.js";
 import path from "path";
 import { fileURLToPath } from "url";
+import commentsRoutes from "./routes/comments.routes.js";
 
 
 
@@ -105,6 +106,7 @@ app.get("/api/admin/summary", authRequired, requireAdmin, (_req, res) => {
 app.use("/api/plugins", pluginRoutes);
 // Requests (user-submitted plugin requests)
 app.use("/api/requests", requestsRouter);
+app.use("/api", commentsRoutes);
 
 
 // Health
