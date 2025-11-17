@@ -15,6 +15,7 @@ import requestsRouter from "./routes/requests.routes.js";
 import path from "path";
 import { fileURLToPath } from "url";
 import commentsRoutes from "./routes/comments.routes.js";
+import categoryRouter from "./routes/category.routes.js";
 
 
 
@@ -107,7 +108,7 @@ app.use("/api/plugins", pluginRoutes);
 // Requests (user-submitted plugin requests)
 app.use("/api/requests", requestsRouter);
 app.use("/api", commentsRoutes);
-
+app.use("/api/categories", categoryRouter);
 
 // Health
 app.get("/health", (_req, res) => res.json({ ok: true }));
