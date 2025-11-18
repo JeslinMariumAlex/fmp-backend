@@ -16,6 +16,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import commentsRoutes from "./routes/comments.routes.js";
 import categoryRouter from "./routes/category.routes.js";
+import contactRoutes from "./routes/contact.routes.js";
 
 
 
@@ -109,6 +110,7 @@ app.use("/api/plugins", pluginRoutes);
 app.use("/api/requests", requestsRouter);
 app.use("/api", commentsRoutes);
 app.use("/api/categories", categoryRouter);
+app.use("/api/contact", contactRoutes);
 
 // Health
 app.get("/health", (_req, res) => res.json({ ok: true }));
