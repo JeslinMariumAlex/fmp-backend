@@ -18,8 +18,6 @@ import commentsRoutes from "./routes/comments.routes.js";
 import categoryRouter from "./routes/category.routes.js";
 import contactRoutes from "./routes/contact.routes.js";
 
-
-
 const app = express();
 app.set("trust proxy", 1); // <-- IMPORTANT for secure cookies on Render
 
@@ -38,12 +36,14 @@ const DEV_ORIGINS = [
   "http://127.0.0.1:3000",
 ];
 
-const ALLOWED_ORIGINS = isProd ? PROD_ORIGINS : [...PROD_ORIGINS, ...DEV_ORIGINS];
+const ALLOWED_ORIGINS = isProd
+  ? PROD_ORIGINS
+  : [...PROD_ORIGINS, ...DEV_ORIGINS];
 
 app.use(
   cors({
     origin(origin, cb) {
-      if (!origin) return cb(null, true);                // allow Postman/server-to-server
+      if (!origin) return cb(null, true); // allow Postman/server-to-server
       if (ALLOWED_ORIGINS.includes(origin)) return cb(null, true);
       return cb(new Error("Not allowed by CORS: " + origin));
     },
@@ -58,7 +58,7 @@ app.options(/.*/, cors());
 
 app.use(compression());
 app.use(morgan(process.env.NODE_ENV === "production" ? "combined" : "dev"));
-app.use(express.json({ limit: "25mb" }));   // higher for screenshots
+app.use(express.json({ limit: "25mb" })); // higher for screenshots
 app.use(express.urlencoded({ extended: true }));
 
 // __dirname for ES modules

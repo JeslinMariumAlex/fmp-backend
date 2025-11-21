@@ -14,27 +14,52 @@ const COOKIE_OPTIONS = {
   maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
 };
 
-/* -----------------------------------
-   ADMIN LOGIN
-   POST /api/auth/login
------------------------------------ */
-router.post("/login", (req, res, next) => {
-  const { email, password } = req.body || {};
+// POST /api/auth/login
+router.post("/login", async (req, res) => {
+  try {
+    const { email, password } = req.body || {};
+    if (!email || !password) {
+      return res.status(400).json({ ok: false, message: "Missing credentials" });
+    }
 
-  if (
-    email === process.env.ADMIN_EMAIL &&
-    password === process.env.ADMIN_PASSWORD
-  ) {
-    const token = jwt.sign({ email, role: "admin" }, JWT_SECRET, {
-      expiresIn: "7d",
-    });
+    // 1) ENV admin shortcut
+    if (email === process.env.ADMIN_EMAIL && password === process.env.ADMIN_PASSWORD) {
+      const token = jwt.sign({ role: "admin", email }, JWT_SECRET, { expiresIn: "7d" });
+      res.cookie("token", token, COOKIE_OPTIONS);
+      return res.json({ ok: true, role: "admin", user: { name: "Admin", email, role: "admin" } });
+    }
+
+    // 2) DB user login
+    const user = await User.findOne({ email }).exec();
+    if (!user) {
+      return res.status(401).json({ ok: false, message: "Invalid credentials" });
+    }
+
+    if (!user.password) {
+      console.warn("User has no password hash in DB:", email);
+      return res.status(401).json({ ok: false, message: "Invalid credentials" });
+    }
+
+    const match = await bcrypt.compare(password, user.password);
+    if (!match) {
+      return res.status(401).json({ ok: false, message: "Invalid credentials" });
+    }
+
+    const role = user.role || "user";
+    const token = jwt.sign({ id: user._id.toString(), role }, JWT_SECRET, { expiresIn: "7d" });
     res.cookie("token", token, COOKIE_OPTIONS);
-    return res.json({ ok: true, role: "admin" });
-  }
 
-  // not admin → go to user login handler
-  return next();
+    return res.json({
+      ok: true,
+      role,
+      user: { _id: user._id, name: user.name, email: user.email, role },
+    });
+  } catch (err) {
+    console.error("login error:", err);
+    return res.status(500).json({ ok: false, message: "Server error" });
+  }
 });
+
 
 /* -----------------------------------
    USER REGISTER
@@ -45,9 +70,7 @@ router.post("/user-register", async (req, res) => {
   try {
     const { name, email, password } = req.body || {};
     if (!name || !email || !password) {
-      return res
-        .status(400)
-        .json({ ok: false, message: "Missing fields" });
+      return res.status(400).json({ ok: false, message: "Missing fields" });
     }
 
     const exists = await User.findOne({ email }).exec();
@@ -57,12 +80,13 @@ router.post("/user-register", async (req, res) => {
         .json({ ok: false, message: "Email already in use" });
     }
 
-    // 👉 hash and store in field `password`
     const hash = await bcrypt.hash(password, 10);
+
+    // role will default to "user"
     const user = await User.create({ name, email, password: hash });
 
     const token = jwt.sign(
-      { id: user._id.toString(), role: "user" },
+      { id: user._id.toString(), role: user.role || "user" },
       JWT_SECRET,
       { expiresIn: "7d" }
     );
@@ -70,8 +94,13 @@ router.post("/user-register", async (req, res) => {
 
     return res.json({
       ok: true,
-      role: "user",
-      user: { _id: user._id, name: user.name, email: user.email },
+      role: user.role || "user",
+      user: {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role || "user",
+      },
     });
   } catch (err) {
     console.error("user-register error:", err);
@@ -100,7 +129,6 @@ router.post("/user-login", async (req, res) => {
         .json({ ok: false, message: "Invalid credentials" });
     }
 
-    // 👉 use the same field `password` where we stored the hash
     if (!user.password) {
       console.warn("User has no password hash in DB:", email);
       return res
@@ -115,17 +143,22 @@ router.post("/user-login", async (req, res) => {
         .json({ ok: false, message: "Invalid credentials" });
     }
 
-    const token = jwt.sign(
-      { id: user._id.toString(), role: "user" },
-      JWT_SECRET,
-      { expiresIn: "7d" }
-    );
+    const role = user.role || "user";
+
+    const token = jwt.sign({ id: user._id.toString(), role }, JWT_SECRET, {
+      expiresIn: "7d",
+    });
     res.cookie("token", token, COOKIE_OPTIONS);
 
     return res.json({
       ok: true,
-      role: "user",
-      user: { _id: user._id, name: user.name, email: user.email },
+      role,
+      user: {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        role,
+      },
     });
   } catch (err) {
     console.error("user-login error:", err);
@@ -139,32 +172,51 @@ router.post("/user-login", async (req, res) => {
 router.get("/me", async (req, res) => {
   try {
     const token = req.cookies?.token;
-    if (!token)
-      return res
-        .status(401)
-        .json({ ok: false, message: "Not authenticated" });
+    if (!token) {
+      return res.status(401).json({ ok: false, message: "Not authenticated" });
+    }
 
     const payload = jwt.verify(token, JWT_SECRET);
 
-    if (payload.role === "admin") {
-      return res.json({ ok: true, role: "admin", email: payload.email });
+    // ENV ADMIN
+    if (payload.role === "admin" && payload.email) {
+      return res.json({
+        ok: true,
+        role: "admin",
+        user: {
+          name: "Admin",
+          email: payload.email,
+          role: "admin",
+        },
+      });
     }
 
-    if (payload.role === "user" && payload.id) {
+    // DB USER
+    if (payload.id) {
       const user = await User.findById(payload.id)
-        .select("_id name email isAdmin")
+        .select("_id name email role")
         .lean()
         .exec();
-      if (!user)
+
+      if (!user) {
         return res
           .status(401)
           .json({ ok: false, message: "Not authenticated" });
-      return res.json({ ok: true, role: "user", user });
+      }
+
+      const role = user.role || payload.role || "user";
+
+      return res.json({
+        ok: true,
+        role,
+        user: {
+          ...user,
+          role,
+        },
+      });
     }
 
-    return res
-      .status(401)
-      .json({ ok: false, message: "Not authenticated" });
+    return res.status(401).json({ ok: false, message: "Not authenticated" });
   } catch (err) {
     console.error("me error:", err);
     return res.status(401).json({ ok: false, message: "Not authenticated" });
