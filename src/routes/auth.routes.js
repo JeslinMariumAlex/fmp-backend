@@ -13,8 +13,13 @@ const COOKIE_OPTIONS = {
   sameSite: process.env.NODE_ENV === "production" ? "None" : "Lax",
 };
 
-// POST /api/auth/login
-router.post("/login", async (req, res) => {
+/* -----------------------------------
+   ADMIN LOGIN (new endpoint)
+   POST /api/auth/admin-login
+   body: { email, password }
+   - supports ENV admin shortcut AND DB admin users (role: "admin")
+----------------------------------- */
+router.post("/admin-login", async (req, res) => {
   try {
     const { email, password } = req.body || {};
     if (!email || !password) {
@@ -28,37 +33,41 @@ router.post("/login", async (req, res) => {
       return res.json({ ok: true, role: "admin", user: { name: "Admin", email, role: "admin" } });
     }
 
-    // 2) DB user login
-    const user = await User.findOne({ email }).exec();
-    if (!user) {
+    // 2) DB admin login (user with role === 'admin')
+    const adminUser = await User.findOne({ email, role: "admin" }).exec();
+    if (!adminUser) {
+      // Do not leak whether email exists
       return res.status(401).json({ ok: false, message: "Invalid credentials" });
     }
 
-    if (!user.password) {
-      console.warn("User has no password hash in DB:", email);
+    if (!adminUser.password) {
+      console.warn("Admin user has no password hash in DB:", email);
       return res.status(401).json({ ok: false, message: "Invalid credentials" });
     }
 
-    const match = await bcrypt.compare(password, user.password);
+    const match = await bcrypt.compare(password, adminUser.password);
     if (!match) {
       return res.status(401).json({ ok: false, message: "Invalid credentials" });
     }
 
-    const role = user.role || "user";
-    const token = jwt.sign({ id: user._id.toString(), role }, JWT_SECRET, { expiresIn: "7d" });
+    const token = jwt.sign({ id: adminUser._id.toString(), role: "admin" }, JWT_SECRET, { expiresIn: "7d" });
     res.cookie("token", token, COOKIE_OPTIONS);
 
     return res.json({
       ok: true,
-      role,
-      user: { _id: user._id, name: user.name, email: user.email, role },
+      role: "admin",
+      user: {
+        _id: adminUser._id,
+        name: adminUser.name,
+        email: adminUser.email,
+        role: adminUser.role || "admin",
+      },
     });
   } catch (err) {
-    console.error("login error:", err);
+    console.error("admin-login error:", err);
     return res.status(500).json({ ok: false, message: "Server error" });
   }
 });
-
 
 /* -----------------------------------
    USER REGISTER
@@ -81,7 +90,7 @@ router.post("/user-register", async (req, res) => {
 
     const hash = await bcrypt.hash(password, 10);
 
-    // role will default to "user"
+    // role will default to "user" in model/schema
     const user = await User.create({ name, email, password: hash });
 
     const token = jwt.sign(
@@ -167,6 +176,7 @@ router.post("/user-login", async (req, res) => {
 
 /* -----------------------------------
    GET /api/auth/me
+   unchanged: reads cookie token and returns user/admin info
 ----------------------------------- */
 router.get("/me", async (req, res) => {
   try {
@@ -177,8 +187,8 @@ router.get("/me", async (req, res) => {
 
     const payload = jwt.verify(token, JWT_SECRET);
 
-    // ENV ADMIN
-    if (payload.role === "admin" && payload.email) {
+    // ENV ADMIN (token issued via ENV admin-login)
+    if (payload.role === "admin" && payload.email && !payload.id) {
       return res.json({
         ok: true,
         role: "admin",
@@ -190,7 +200,7 @@ router.get("/me", async (req, res) => {
       });
     }
 
-    // DB USER
+    // DB USER / DB ADMIN (token issued with id)
     if (payload.id) {
       const user = await User.findById(payload.id)
         .select("_id name email role")
