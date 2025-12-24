@@ -2,6 +2,7 @@
 import express from "express";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
+import { OAuth2Client } from "google-auth-library";
 import User from "../models/User.js";
 
 const router = express.Router();
@@ -239,5 +240,63 @@ router.post("/logout", (_req, res) => {
   res.clearCookie("token", COOKIE_OPTIONS);
   res.json({ ok: true });
 });
+
+
+/* -----------------------------------
+   GOOGLE LOGIN
+   POST /api/auth/google
+   body: { token }
+----------------------------------- */
+const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+
+router.post("/google", async (req, res) => {
+  try {
+    const { token } = req.body || {};
+    if (!token) {
+      return res.status(400).json({ ok: false, message: "No Google token" });
+    }
+
+    const ticket = await googleClient.verifyIdToken({
+      idToken: token,
+      audience: process.env.GOOGLE_CLIENT_ID,
+    });
+
+    const { email, name, picture } = ticket.getPayload();
+
+    let user = await User.findOne({ email }).exec();
+
+    if (!user) {
+      user = await User.create({
+        name,
+        email,
+        provider: "google",
+        role: "user",
+      });
+    }
+
+    const jwtToken = jwt.sign(
+      { id: user._id.toString(), role: user.role || "user" },
+      JWT_SECRET,
+      { expiresIn: "7d" }
+    );
+
+    res.cookie("token", jwtToken, COOKIE_OPTIONS);
+
+    return res.json({
+      ok: true,
+      role: user.role || "user",
+      user: {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role || "user",
+      },
+    });
+  } catch (err) {
+    console.error("Google login error:", err.message);
+    return res.status(401).json({ ok: false, message: "Google auth failed" });
+  }
+});
+
 
 export default router;
